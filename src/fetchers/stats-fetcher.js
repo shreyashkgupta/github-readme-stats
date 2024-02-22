@@ -16,7 +16,7 @@ dotenv.config();
 
 // GraphQL queries.
 const GRAPHQL_REPOS_FIELD = `
-  repositories(first: 100, ownerAffiliations: OWNER, orderBy: {direction: DESC, field: STARGAZERS}, after: $after) {
+  repositories(first: 100, ownerAffiliations: [OWNER, ORGANIZATION_MEMBER], orderBy: {direction: DESC, field: STARGAZERS}, after: $after) {
     totalCount
     nodes {
       name
@@ -308,11 +308,13 @@ const fetchStats = async (
 
   stats.totalStars = user.repositories.nodes
     .filter((data) => {
-      return !repoToHide.has(data.name);
+      const isOrganizationRepo = data.owner.__typename === 'Organization';
+      const isHiddenRepo = repoToHide.has(data.name) || (isOrganizationRepo && repoToHide.has(data.owner.name));
+      return !isHiddenRepo;
     })
     .reduce((prev, curr) => {
-      return prev + curr.stargazers.totalCount;
-    }, 0);
+    return prev + curr.stargazers.totalCount;
+  }, 0);
 
   stats.rank = calculateRank({
     all_commits: include_all_commits,
