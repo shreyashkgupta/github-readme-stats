@@ -10,13 +10,14 @@ import {
   MissingParamError,
   request,
   wrapTextMultiline,
+  parseOwnerAffiliations,
 } from "../common/utils.js";
 
 dotenv.config();
 
 // GraphQL queries.
 const GRAPHQL_REPOS_FIELD = `
-  repositories(first: 100, ownerAffiliations: OWNER, orderBy: {direction: DESC, field: STARGAZERS}, after: $after) {
+  repositories(first: 100, after: $after, ownerAffiliations: $ownerAffiliations, orderBy: {direction: DESC, field: STARGAZERS}) {
     totalCount
     nodes {
       name
@@ -32,15 +33,15 @@ const GRAPHQL_REPOS_FIELD = `
 `;
 
 const GRAPHQL_REPOS_QUERY = `
-  query userInfo($login: String!, $after: String) {
-    user(login: $login) {
+  query userInfo($login: String!, $after: String, $ownerAffiliations: [RepositoryAffiliation]) {
+    user(login: $login, ownerAffiliations: $ownerAffiliations) {
       ${GRAPHQL_REPOS_FIELD}
     }
   }
 `;
 
 const GRAPHQL_STATS_QUERY = `
-  query userInfo($login: String!, $after: String, $includeMergedPullRequests: Boolean!, $includeDiscussions: Boolean!, $includeDiscussionsAnswers: Boolean!) {
+  query userInfo($login: String!, $after: String, $ownerAffiliations: [RepositoryAffiliation], $includeMergedPullRequests: Boolean!, $includeDiscussions: Boolean!, $includeDiscussionsAnswers: Boolean!) {
     user(login: $login) {
       name
       login
@@ -106,6 +107,7 @@ const fetcher = (variables, token) => {
  *
  * @param {object} variables Fetcher variables.
  * @param {string} variables.username Github username.
+ * @param {string[]} ownerAffiliations The owner affiliations to filter by. Default: OWNER.
  * @param {boolean} variables.includeMergedPullRequests Include merged pull requests.
  * @param {boolean} variables.includeDiscussions Include discussions.
  * @param {boolean} variables.includeDiscussionsAnswers Include discussions answers.
@@ -118,18 +120,23 @@ const statsFetcher = async ({
   includeMergedPullRequests,
   includeDiscussions,
   includeDiscussionsAnswers,
-}) => {
+}, ownerAffiliations) => {
   let stats;
   let hasNextPage = true;
   let endCursor = null;
   while (hasNextPage) {
     const variables = {
+     
       login: username,
+     
       first: 100,
+     
       after: endCursor,
       includeMergedPullRequests,
       includeDiscussions,
       includeDiscussionsAnswers,
+   ,
+      ownerAffiliations: ownerAffiliations,
     };
     let res = await retryer(fetcher, variables);
     if (res.data.errors) {
@@ -217,6 +224,8 @@ const totalCommitsFetcher = async (username) => {
  * @param {boolean} include_merged_pull_requests Include merged pull requests.
  * @param {boolean} include_discussions Include discussions.
  * @param {boolean} include_discussions_answers Include discussions answers.
+ * @param {string[]} exclude_repo Repositories to exclude.  Default: [].
+ * @param {string[]} ownerAffiliations Owner affiliations. Default: OWNER.
  * @returns {Promise<StatsData>} Stats data.
  */
 const fetchStats = async (
@@ -226,6 +235,7 @@ const fetchStats = async (
   include_merged_pull_requests = false,
   include_discussions = false,
   include_discussions_answers = false,
+  ownerAffiliations = [],
 ) => {
   if (!username) {
     throw new MissingParamError(["username"]);
@@ -245,9 +255,10 @@ const fetchStats = async (
     contributedTo: 0,
     rank: { level: "C", percentile: 100 },
   };
+  ownerAffiliations = parseOwnerAffiliations(ownerAffiliations);
 
   let res = await statsFetcher({
-    username,
+    username, ownerAffiliations,
     includeMergedPullRequests: include_merged_pull_requests,
     includeDiscussions: include_discussions,
     includeDiscussionsAnswers: include_discussions_answers,

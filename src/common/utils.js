@@ -588,6 +588,36 @@ const dateDiff = (d1, d2) => {
   const diff = date1.getTime() - date2.getTime();
   return Math.round(diff / (1000 * 60));
 };
+/**
+ * Parse owner affiliations.
+ *
+ * @param {string[]} affiliations
+ * @returns {string[]} Parsed affiliations.
+ *
+ * @throws {CustomError} If affiliations contains invalid values.
+ */
+const parseOwnerAffiliations = (affiliations) => {
+  // Set default value for ownerAffiliations.
+  // NOTE: Done here since parseArray() will always return an empty array even nothing
+  //was specified.
+  affiliations =
+    affiliations && affiliations.length > 0
+      ? affiliations.map((affiliation) => affiliation.toUpperCase())
+      : ["OWNER"];
+
+  // Check if ownerAffiliations contains valid values.
+  if (
+    affiliations.some(
+      (affiliation) => !OWNER_AFFILIATIONS.includes(affiliation),
+    )
+  ) {
+    throw new CustomError(
+      "Invalid query parameter",
+      CustomError.INVALID_AFFILIATION,
+    );
+  }
+  return affiliations;
+};
 
 export {
   ERROR_CARD_LENGTH,
@@ -608,6 +638,7 @@ export {
   wrapTextMultiline,
   logger,
   CONSTANTS,
+  OWNER_AFFILIATIONS,
   CustomError,
   MissingParamError,
   measureText,
@@ -615,4 +646,5 @@ export {
   chunkArray,
   parseEmojis,
   dateDiff,
+  parseOwnerAffiliations,
 };

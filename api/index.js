@@ -38,6 +38,7 @@ export default async (req, res) => {
     border_color,
     rank_icon,
     show,
+    role,
   } = req.query;
   res.setHeader("Content-Type", "image/svg+xml");
 
@@ -75,6 +76,7 @@ export default async (req, res) => {
         showStats.includes("prs_merged_percentage"),
       showStats.includes("discussions_started"),
       showStats.includes("discussions_answered"),
+      parseArray(role),
     );
 
     let cacheSeconds = clampValue(
