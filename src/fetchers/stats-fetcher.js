@@ -308,11 +308,13 @@ const fetchStats = async (
 
   stats.totalStars = user.repositories.nodes
     .filter((data) => {
-      return !repoToHide.has(data.name);
+      const isOrganizationRepo = data.owner.__typename === 'Organization';
+      const isHiddenRepo = repoToHide.has(data.name) || (isOrganizationRepo && repoToHide.has(data.owner.name));
+      return !isHiddenRepo;
     })
     .reduce((prev, curr) => {
-      return prev + curr.stargazers.totalCount;
-    }, 0);
+    return prev + curr.stargazers.totalCount;
+  }, 0);
 
   stats.rank = calculateRank({
     all_commits: include_all_commits,
